@@ -1,0 +1,5 @@
+do-not-commit/**
+.idea/**
+aws/**
+venv/**
+**/__pycache__/**

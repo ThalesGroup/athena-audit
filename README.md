@@ -1,44 +1,83 @@
-# Thales Open Source Template Project
+# README
 
-Template for creating a new project in the [Thales GitHub organization](https://github.com/ThalesGroup).
+## Overview
 
-Each Thales OSS project repository **MUST** contain the following files at the root:
+Data lakes are great. They are flexible as they allow many object formats and multiple query engines. They are also cost-effective – there is no need to manage or pay for resources like disks, CPU, and memory. Data is simply stored in an object store, and it is possible to use a managed query engine for a complete pay-per-usage solution.
 
-- a `LICENSE` which has been chosen in accordance with legal department depending on your needs
+We used our data lake for years and were happy with the cost. The cost grew from month to month, and we were still happy – our data lake grew along with our usage. As the cost continued to rise, we became less happy – mainly because we didn’t know why it was happening.
 
-- a `README.md` outlining the project goals, sponsoring sig, and community contact information, [GitHub tips about README.md](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/about-readmes)
+In this post, we will explain how we analyzed AWS Athena and S3 Transfer costs to help us both understand exactly what we are paying for; and, of course, reduce our cost.
 
-- a `CONTRIBUTING.md` outlining how to contribute to the project, how to submit a pull request and an issue
+## Security Controls
 
-- a `SECURITY.md` outlining how the security concerns are handled, [GitHub tips about SECURITY.md](https://docs.github.com/en/github/managing-security-vulnerabilities/adding-a-security-policy-to-your-repository)
+The audit trail enabled us to monitor usage by users and roles. The data we collected helped us to increase our security controls in the following ways:
 
-Below is an example of the common structure and information expected in a README.
+- When we compared permission to actual data usage, we were able to revoke some permissions.
+- We found security misconfigurations like users/roles used by multiple applications.
+- We detected security incidents and data leakage events using anomaly detection.
 
-**Please keep this structure as is and only fill the content for each section according to your project.**
+## Problem Articulation
 
-If you need assistance or have question, please contact oss@thalesgroup.com
+First, we wanted to know who did what in Athena. We found out learning this is not so simple and here’s why:
 
-## Get started
+- Cloud trail management logs save the users, roles, and queries.
+- Athena history saves the scanned data per query.
 
-XXX project purpose it to ...
+We wanted to know the user, query, and scanned data. To do it we had to join the two sources. In Athena, the cost is calculated according to the scanned data. The scanned data is also an important indicator to the underlying S3 cost, which is determined by a combination of transfer, API calls, and more.
 
-**Please also add the description into the About section (Description field)**
+We also wanted to perform analytics like:
 
-## Documentation
+- Profile users and services.
+- Find the heaviest queries according to data scanned.
+- Find usage over time, such as 30 days back or 90 days back.
 
-Documentation is available at [xxx/docs](https://xxx/docs/).
+## Solution
 
-You can use [GitHub pages](https://guides.github.com/features/pages/) to create your documentation.
+### Flow
 
-See an example here : https://github.com/ThalesGroup/ThalesGroup.github.io
+We created a Python-based Lambda function which inserts daily data into the data lake. Here are the two main steps performed by the function:
 
-**Please also add the documentation URL into the About section (Website field)**
+1. Read Athena history data through boto3 API and write objects to S3.
+2. Join the Athena history and Cloud Trail management logs and write the results to S3.
 
-## Contributing
+Once the data is written to S3, you can query and analyze it using Athena. See the examples below.
 
-If you are interested in contributing to the XXX project, start by reading the [Contributing guide](/CONTRIBUTING.md).
+### Technical Details
 
-## License
+#### Athena History Table
 
-The chosen license in accordance with legal department must be defined into an explicit [LICENSE](https://github.com/ThalesGroup/template-project/blob/master/LICENSE) file at the root of the repository
-You can also link this file in this README section.
+The Athena history table is needed for the ETL (Extract Transform Load) process to work. The history data contains data about the query like the data scanned in bytes that we will use. It is possible to keep the data, or delete it after the ETL run. The history is available through the API going back 45 days.
+
+We use a similar function in our Lambda function, which later perform gzip operation on all the workgroups’ files and uploads them to a new partition (folder) in the history table in S3.
+
+#### Cloud Trail Management Logs Table
+
+Cloud trail collects the users/roles and queries done by Athena as part of its management logs. If you don’t have a trail configured you will have to define one.
+
+You have to create an external table for reading your cloud trail logs by Athena.
+
+#### Athena Events Table
+
+The events table will hold the joined data. We will have to create a table for the results. We chose the subset of cloud trail fields which interest us the most – you can use your own set of fields and change the table accordingly.
+
+We have two source tables, one for the scanned data and one for the events – we will join the data, and insert the results to a new table. Both tables should have the daily partition before you can query them.
+
+#### Joining Athena History with Cloud Trail
+
+The last step of the ETL job is used to join and insert the results. We used an `insert into` command which does the following operations:
+
+- Joins the data.
+- Converts it to parquet format for better performance and costs.
+- Writes the data to the right S3 location.
+- Alters the target table.
+
+Once your events table is ready you can query it by Athena. Here is an example SQL for finding the top users by data scanned:
+
+```sql
+SELECT user, SUM(data_scanned) as total_data_scanned
+FROM events_table
+GROUP BY user
+ORDER BY total_data_scanned DESC
+LIMIT 10;
+```
+Monitoring your data lake usage continuously will help you to understand your operation, and control your security and costs.  You can get to a better permissions model by monitoring the actual usage of the data by your users and roles. You can also detect anomalies – which can lead you to find security incidents. Athena is one of many services that you have to monitor, and the more services you cover, the better control you have.
