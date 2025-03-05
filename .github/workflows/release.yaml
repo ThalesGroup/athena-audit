@@ -16,6 +16,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Validate version input
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        if [[ ! "${{ github.event.inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Invalid version format. It should be v*.*.*"
+          exit 1
+        fi
+
     - name: Checkout code
       uses: actions/checkout@v3
 
