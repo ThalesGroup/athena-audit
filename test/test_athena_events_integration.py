@@ -25,6 +25,11 @@ def init_creds_from_file():
         logging.info("AWS config file set")
 
 
+def get_file_resource(file_name: str) -> str:
+    abs_path = str(Path(os.path.dirname(os.path.abspath(__file__))).absolute())
+    return os.path.join(abs_path, "resources", file_name)
+
+
 @pytest.fixture(autouse=True, scope="module")
 def set_evn():
     init_creds_from_file()
@@ -76,7 +81,7 @@ def _upload_test_event(day: str):
     year, month, day_num = day[:4], day[5:7], day[8:]
     s3 = boto3.client("s3")
     s3.upload_file(
-        "resources/example_event.json",
+        get_file_resource("example_event.json"),
         os.environ["CLOUD_TRAIL_BUCKET"],
         f"{os.environ['CLOUD_TRAIL_FOLDER']}/{os.environ['AWS_REGION']}/{year}/{month}/{day_num}/data.json",
     )
@@ -94,7 +99,9 @@ def test_full_flow_with_history():
     _upload_test_event(day)
     with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f_out:
         with (
-            open("resources/athena_history_example.jsonl", "rb") as json_file_in,
+            open(
+                get_file_resource("athena_history_example.jsonl"), "rb"
+            ) as json_file_in,
             gzip.open(f_out.name, "wb") as gzip_fie,
         ):
             # noinspection PyTypeChecker
