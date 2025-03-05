@@ -15,6 +15,9 @@ jobs:
   package:
     runs-on: ubuntu-latest
 
+    env:
+      VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
     steps:
     - name: Validate version input
       if: github.event_name == 'workflow_dispatch'
@@ -38,8 +41,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ env.VERSION || github.ref_name }}
-        release_name: Release ${{ env.VERSION || github.ref_name }}
+        tag_name: ${{ env.VERSION }}
+        release_name: Release ${{ env.VERSION }}
         draft: false
         prerelease: false
 
@@ -61,5 +64,5 @@ jobs:
 
     - name: Copy zip to S3
       run: |
-        aws s3 cp athena_audit.zip s3://athena-audit-publish/versions/${{ env.VERSION || github.ref_name}}/athena_audit.zip
+        aws s3 cp athena_audit.zip s3://athena-audit-publish/versions/${{ env.VERSION }}/athena_audit.zip
         aws s3 cp athena_audit.zip s3://athena-audit-publish/versions/latest/athena_audit.zip
