@@ -234,7 +234,6 @@ def lambda_handler(event, context):
         from_day = event.get("from_day", get_yesterday())
         to_day = event.get("to_day", get_yesterday())
 
-    validate_day_range(from_day, to_day)
     result = {}
     logger.info(f"START. from day: {from_day}, to day: {to_day}")
     regions = event["regions"].split(",") if "regions" in event else get_regions()
