@@ -55,6 +55,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Run integration tests
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         run: |
           source .venv/bin/activate
           PYTHONPATH=src python -m pytest --color=yes test/*_integration.py
