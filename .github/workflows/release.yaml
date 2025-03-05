@@ -52,3 +52,12 @@ jobs:
         asset_path: ./athena_audit.zip
         asset_name: athena_audit.zip
         asset_content_type: application/zip
+
+    - name: Get AWS Permissions
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/athena-audit-github-publish-role
+        aws-region: us-east-1
+
+    - name: Copy zip to S3
+      run: aws s3 cp athena_audit.zip s3://athena-audit-publish/versions/${{ github.ref_name || env.VERSION }}/athena_audit.zip
