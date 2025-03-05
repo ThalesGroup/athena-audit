@@ -49,6 +49,7 @@ jobs:
           PYTHONPATH=src python -m pytest --color=yes test/*_mock_aws.py
 
       - name: Get AWS Permissions
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/athena-audit-github-role
