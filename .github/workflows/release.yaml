@@ -38,8 +38,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref_name || env.VERSION }}
-        release_name: Release ${{ github.ref_name || env.VERSION }}
+        tag_name: ${{ env.VERSION || github.ref_name }}
+        release_name: Release ${{ env.VERSION || github.ref_name }}
         draft: false
         prerelease: false
 
@@ -60,4 +60,6 @@ jobs:
         aws-region: us-east-1
 
     - name: Copy zip to S3
-      run: aws s3 cp athena_audit.zip s3://athena-audit-publish/versions/${{ github.ref_name || env.VERSION }}/athena_audit.zip
+      run: |
+        aws s3 cp athena_audit.zip s3://athena-audit-publish/versions/${{ env.VERSION || github.ref_name}}/athena_audit.zip
+        aws s3 cp athena_audit.zip s3://athena-audit-publish/versions/latest/athena_audit.zip
