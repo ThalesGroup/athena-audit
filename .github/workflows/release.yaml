@@ -15,6 +15,12 @@ jobs:
   package:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+
+
     env:
       VERSION: ${{ github.event.inputs.version || github.ref_name }}
 
