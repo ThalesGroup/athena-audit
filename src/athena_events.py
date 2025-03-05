@@ -8,7 +8,6 @@ from typing import Generator, List, Dict
 import boto3
 
 from common_utils import (
-    validate_day_range,
     get_day_back,
     get_yesterday,
     get_days,
