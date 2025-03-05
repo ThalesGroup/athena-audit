@@ -42,6 +42,11 @@ jobs:
           source .venv/bin/activate
           PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
 
+      - name: Run mock AWS tests
+        run: |
+          source .venv/bin/activate
+          PYTHONPATH=src python -m pytest --color=yes test/*_mock_aws.py
+
       - name: Get AWS Permissions
         uses: aws-actions/configure-aws-credentials@v2
         with:
