@@ -1,0 +1,48 @@
+name: Package and Release Sources
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version'
+        required: true
+
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Zip source files
+      run: zip -r athena_audit.zip src
+
+    - name: Extract version without 'v' prefix
+      id: version
+      run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.version }}
+        release_name: Release ${{ env.version }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./athena_audit.zip
+        asset_name: athena_audit.zip
+        asset_content_type: application/zip
