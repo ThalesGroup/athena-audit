@@ -48,7 +48,7 @@ jobs:
           PYTHONPATH=src python -m pytest --color=yes test/*_mock_aws.py
 
       - name: Get AWS Permissions
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/athena-audit-github-role
           aws-region: us-east-1
