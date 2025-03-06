@@ -4,6 +4,12 @@
 
 create-audit is a tool that helps you to monitor your data lake usage. It collects data from Athena and Cloud Trail, and joins it to provide insights about your data lake usage. The tool is based on a Python Lambda function that writes the data to S3. You can query the data using Athena.
 
+The audit trail enabled us to monitor usage by users and roles. The data we collected helps to increase security controls:
+
+- Compared permission to actual data usage, and revoke some permissions.
+- Find security misconfigurations like users/roles used by multiple applications.
+- Detected security incidents and data leakage events using anomaly detection.
+
 ## Installation
 
 Use the cloudformation template to create the resources needed for the tool. The template creates the following resources:
@@ -11,34 +17,20 @@ Use the cloudformation template to create the resources needed for the tool. The
 - Athena events collection lambda function (in a single main region)
 The cloud formation templates can create the lambda roles for you, or you can use an existing role.
 
-## Security Controls
-
-The audit trail enabled us to monitor usage by users and roles. The data we collected helped us to increase our security controls in the following ways:
-
-- When we compared permission to actual data usage, we were able to revoke some permissions.
-- We found security misconfigurations like users/roles used by multiple applications.
-- We detected security incidents and data leakage events using anomaly detection.
-
 ## Problem Articulation
 
-First, we wanted to know who did what in Athena. We found out learning this is not so simple and here’s why:
+To know who did what in Athena data from the following sources are needed:
 
-- Cloud trail management logs save the users, roles, and queries.
-- Athena history saves the scanned data per query.
+- Cloud trail management logs save the users, roles
+- Athena history saves the query itself and data scanned data per query
 
-We wanted to know the user, query, and scanned data. To do it we had to join the two sources. In Athena, the cost is calculated according to the scanned data. The scanned data is also an important indicator to the underlying S3 cost, which is determined by a combination of transfer, API calls, and more.
-
-We also wanted to perform analytics like:
-
-- Profile users and services.
-- Find the heaviest queries according to data scanned.
-- Find usage over time, such as 30 days back or 90 days back.
+Since the data is saved in two different sources, and the athena history is accessible only through the API, we need to get and join the data to get the full picture.
 
 ## Solution
 
 ### Flow
 
-We created a Python-based Lambda function which inserts daily data into the data lake. Here are the two main steps performed by the function:
+A Python-based Lambda function which inserts daily data into the data lake. Here are the two main steps performed by the function:
 
 1. Read Athena history data through boto3 API and write objects to S3.
 2. Join the Athena history and Cloud Trail management logs and write the results to S3.
