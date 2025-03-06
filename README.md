@@ -2,11 +2,14 @@
 
 ## Overview
 
-Data lakes are great. They are flexible as they allow many object formats and multiple query engines. They are also cost-effective – there is no need to manage or pay for resources like disks, CPU, and memory. Data is simply stored in an object store, and it is possible to use a managed query engine for a complete pay-per-usage solution.
+create-audit is a tool that helps you to monitor your data lake usage. It collects data from Athena and Cloud Trail, and joins it to provide insights about your data lake usage. The tool is based on a Python Lambda function that writes the data to S3. You can query the data using Athena.
 
-We used our data lake for years and were happy with the cost. The cost grew from month to month, and we were still happy – our data lake grew along with our usage. As the cost continued to rise, we became less happy – mainly because we didn’t know why it was happening.
+## Installation
 
-In this post, we will explain how we analyzed AWS Athena and S3 Transfer costs to help us both understand exactly what we are paying for; and, of course, reduce our cost.
+Use the cloudformation template to create the resources needed for the tool. The template creates the following resources:
+- Athena history collection lambda function (per region)
+- Athena events collection lambda function (in a single main region)
+The cloud formation templates can create the lambda roles for you, or you can use an existing role.
 
 ## Security Controls
 

@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  Bucket:
+    Type: String
+    Description: The S3 bucket to store athena history data
+  Folder:
+    Type: String
+    Description: The S3 folder (path) to store history data under
+    Default: 'athena_audit/history'
+  Role:
+    Type: String
+    Description: Lambda role
+    Default: ''
+  Version:
+    Type: String
+    Description: The version of the athena audit code
+    Default: 'latest'
+
+Conditions:
+  CreateLambdaRole: !Equals [!Ref Role, '']
+
+Resources:
+  AthenaHistoryLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-AthenaHistoryLambdaFunction'
+      RetentionInDays: 14
+
+  AthenaHistoryLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Condition: CreateLambdaRole
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AthenaHistoryLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:GetObjectVersion
+                Resource: !Sub 'arn:aws:s3:::${Bucket}/${Folder}/region=${AWS::Region}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource: !Sub 'arn:aws:s3:::${Bucket}'
+              - Effect: Allow
+                Action:
+                  - athena:ListWorkGroups
+                  - athena:ListQueryExecutions
+                  - athena:BatchGetQueryExecution
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    'aws:RequestedRegion': !Ref 'AWS::Region'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-AthenaHistoryLambdaFunction:*'
+
+
+  AthenaHistoryLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: 'athena_history.lambda_handler'
+      Role: !If [CreateLambdaRole, !GetAtt AthenaHistoryLambdaRole.Arn, !Ref Role]
+      Code:
+        S3Bucket: athena-audit-publish
+        S3Key: !Sub 'versions/${Version}/athena_audit.zip'
+      Runtime: 'python3.13'
+      Architectures:
+        - arm64
+      Timeout: 300
+      Environment:
+        Variables:
+          BUCKET: !Ref Bucket
+          FOLDER: !Ref Folder
+
+  DailyTriggerRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      ScheduleExpression: 'rate(1 day)'
+      Targets:
+        - Arn: !GetAtt AthenaHistoryLambdaFunction.Arn
+          Id: 'AthenaHistoryLambdaFunctionTarget'
+
+  PermissionForEventsToInvokeLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !Ref AthenaHistoryLambdaFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt DailyTriggerRule.Arn
