@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  Bucket:
+    Type: String
+    Description: The S3 bucket to store athena events data
+  CloudTrailBucket:
+    Type: String
+    Description: The S3 bucket to in which cloudtrail logs are stored
+  CloudTrailFolder:
+    Type: String
+    Description: The S3 folder (path) to store cloudtrail logs
+  DatabaseName:
+    Type: String
+    Description: The name of the database to store the athena-audit tables
+    Default: 'default'
+  REGIONS:
+    Type: String
+    Description: The list of regions to monitor
+    Default: 'us-east-1'
+  Workgroup:
+    Type: String
+    Description: The name of the workgroup to use for athena queries
+    Default: 'primary'
+  HistoryFolder:
+    Type: String
+    Description: The S3 folder (path) to store history data under
+    Default: 'athena_audit/history'
+  EventsFolder:
+    Type: String
+    Description: The S3 folder (path) to store history data under
+    Default: 'athena_audit/events'
+  Role:
+    Type: String
+    Description: Lambda role
+    Default: ''
+  Version:
+    Type: String
+    Description: The version of the athena audit code
+    Default: 'latest'
+  AthenaOutputFolder:
+    Type: String
+    Description: The S3 folder (path) to store athena query results
+    Default: 'athena_audit/query_results'
+
+Conditions:
+  CreateLambdaRole: !Equals [!Ref Role, '']
+
+Resources:
+  AthenaHistoryLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-AthenaHistoryLambdaFunction'
+      RetentionInDays: 14
+
+  AthenaHistoryLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Condition: CreateLambdaRole
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AthenaHistoryLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:GetObjectVersion
+                Resource: [
+                  !Sub 'arn:aws:s3:::${Bucket}/${EventsFolder}/region=${AWS::Region}/*',
+                  !Sub 'arn:aws:s3:::${Bucket}/${AthenaOutputFolder}/*'
+                ]
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: [
+                  !Sub 'arn:aws:s3:::${CloudTrailBucket}/${CloudTrailFolder}/',
+                  !Sub 'arn:aws:s3:::${Bucket}/${HistoryFolder}/region=${AWS::Region}/*'
+                ]
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource: [
+                  !Sub 'arn:aws:s3:::${Bucket}',
+                  !Sub 'arn:aws:s3:::${CloudTrailBucket}'
+                ]
+              - Effect: Allow
+                Action:
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                  - athena:GetWorkGroup
+                  - athena:StartQueryExecution
+                  - athena:StopQueryExecution
+                Resource: [
+                    !Sub 'arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${Workgroup}',
+                    !Sub 'arn:aws:athena:${AWS::Region}:${AWS::AccountId}:datacatalog/*',
+                    !Sub 'arn:aws:athena:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}',
+                ]
+              - Effect: Allow
+                Action:
+                - glue:CreateDatabase
+                - glue:DeleteDatabase
+                - glue:GetCatalog
+                - glue:GetCatalogs
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:UpdateDatabase
+                - glue:CreateTable
+                - glue:DeleteTable
+                - glue:BatchDeleteTable
+                - glue:UpdateTable
+                - glue:GetTable
+                - glue:GetTables
+                - glue:BatchCreatePartition
+                - glue:CreatePartition
+                - glue:DeletePartition
+                - glue:BatchDeletePartition
+                - glue:UpdatePartition
+                - glue:GetPartition
+                - glue:GetPartitions
+                Resource: [
+                    !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog',
+                    !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}',
+                    !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${DatabaseName}/*',
+                ]
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-AthenaHistoryLambdaFunction:*'
+
+
+  AthenaHistoryLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: 'athena_events.lambda_handler'
+      Role: !If [CreateLambdaRole, !GetAtt AthenaHistoryLambdaRole.Arn, !Ref Role]
+      Code:
+        S3Bucket: athena-audit-publish
+        S3Key: !Sub 'versions/${Version}/athena_audit.zip'
+      Runtime: 'python3.13'
+      Architectures:
+        - arm64
+      Timeout: 300
+      Environment:
+        Variables:
+          BUCKET: !Ref Bucket
+          DB_NAME: !Ref DatabaseName
+          WORKGROUP: !Ref Workgroup
+          REGIONS: !Ref REGIONS
+          CLOUDTRAIL_BUCKET: !Ref CloudTrailBucket
+          CLOUDTRAIL_FOLDER: !Ref CloudTrailFolder
+          EVENTS_FOLDER: !Ref EventsFolder
+          HISTORY_FOLDER: !Ref HistoryFolder
+          ATHENA_OUTPUT_FOLDER: !Ref AthenaOutputFolder
+
+  DailyTriggerRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      ScheduleExpression: 'cron(15 1 * * ? *)'
+      Targets:
+        - Arn: !GetAtt AthenaHistoryLambdaFunction.Arn
+          Id: 'AthenaHistoryLambdaFunctionTarget'
+
+  PermissionForEventsToInvokeLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !Ref AthenaHistoryLambdaFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt DailyTriggerRule.Arn
