@@ -2,20 +2,25 @@
 
 ## Overview
 
-create-audit is a tool that helps you to monitor your data lake usage. It collects data from Athena and Cloud Trail, and joins it to provide insights about your data lake usage. The tool is based on a Python Lambda function that writes the data to S3. You can query the data using Athena.
+`create-audit` is a tool designed to help you monitor your data lake usage. It collects data from AWS Athena and AWS CloudTrail, and combines it to provide insights into your data lake usage. The tool is based on a Python AWS Lambda function that writes the data to AWS S3. You can query the data using a query engine like AWS Athena and use it in your own analytics tools and processes.
 
-The audit trail enabled us to monitor usage by users and roles. The data we collected helps to increase security controls:
+Collecting audit data is crucial as it allows you to monitor usage by users and roles. The data collected helps to enhance security controls by:
 
-- Compared permission to actual data usage, and revoke some permissions.
-- Find security misconfigurations like users/roles used by multiple applications.
-- Detected security incidents and data leakage events using anomaly detection.
+- Compare permissions to actual data usage and revoke unnecessary permissions.
+- Identify security misconfigurations, such as users/roles used by multiple applications.
+- Detect security incidents and data leakage events through anomaly detection.
+
+Monitoring your data lake usage continuously will help you to understand your operation, and control your security and costs.  You can get to a better permissions model by monitoring the actual usage of the data by your users and roles. You can also detect anomalies – which can lead you to find security incidents. 
+
+Installation is easy, and the tool is based on serverless technologies, so you don’t need to maintain any permanent resources. Read on to learn more about the tool and how to install it.
 
 ## Installation
 
-Use the cloudformation template to create the resources needed for the tool. The template creates the following resources:
-- Athena history collection lambda function (per region)
-- Athena events collection lambda function (in a single main region)
-The cloud formation templates can create the lambda roles for you, or you can use an existing role.
+The tool is very easy to install. Use the CloudFormation template to create the necessary resources. The template creates the following resources:
+- AWS Athena history collection Lambda function (per region)
+- AWS Athena events collection Lambda function (in a single main region)
+
+The CloudFormation templates can create the Lambda roles for you, or you can use an existing role. The tool operates across multiple regions, collecting data from all regions into a single table.
 
 ## Problem Articulation
 
@@ -24,7 +29,7 @@ To know who did what in Athena data from the following sources are needed:
 - Cloud trail management logs save the users, roles
 - Athena history saves the query itself and data scanned data per query
 
-Since the data is saved in two different sources, and the athena history is accessible only through the API, we need to get and join the data to get the full picture.
+Since the data is saved in two different sources, and the athena history is accessible only through the API - Join operation is needed to get the full picture.
 
 ## Solution
 
@@ -39,40 +44,28 @@ Once the data is written to S3, you can query and analyze it using Athena. See t
 
 ### Technical Details
 
-#### Athena History Table
-
-The Athena history table is needed for the ETL (Extract Transform Load) process to work. The history data contains data about the query like the data scanned in bytes that we will use. It is possible to keep the data, or delete it after the ETL run. The history is available through the API going back 45 days.
-
-We use a similar function in our Lambda function, which later perform gzip operation on all the workgroups’ files and uploads them to a new partition (folder) in the history table in S3.
 
 #### Cloud Trail Management Logs Table
 
 Cloud trail collects the users/roles and queries done by Athena as part of its management logs. If you don’t have a trail configured you will have to define one.
 
-You have to create an external table for reading your cloud trail logs by Athena.
+`athean-audit` creates an external table for the cloud trail logs and uses it.
+
+#### Athena History Table
+
+History data is available through the AWS Athena API going back 45 days. It contains information which doesn't exist in the cloud trail logs, such as the query itself and the data scanned. `athean-audit` collects the history data to S3, and creates an external table for it.
 
 #### Athena Events Table
 
-The events table will hold the joined data. We will have to create a table for the results. We chose the subset of cloud trail fields which interest us the most – you can use your own set of fields and change the table accordingly.
+The events table holds the joined data, and is used for querying and analyzing the data.
 
-We have two source tables, one for the scanned data and one for the events – we will join the data, and insert the results to a new table. Both tables should have the daily partition before you can query them.
-
-#### Joining Athena History with Cloud Trail
-
-The last step of the ETL job is used to join and insert the results. We used an `insert into` command which does the following operations:
-
-- Joins the data.
-- Converts it to parquet format for better performance and costs.
-- Writes the data to the right S3 location.
-- Alters the target table.
-
-Once your events table is ready you can query it by Athena. Here is an example SQL for finding the top users by data scanned:
+Here is an example SQL for finding the top users by data scanned in the last 7 days:
 
 ```sql
-SELECT user, SUM(data_scanned) as total_data_scanned
-FROM events_table
+SELECT user, ROUND(SUM(data_scanned) / 1000000000.0, 2) as total_data_scanned_gb
+FROM athena_audit.events
+WHERE DATE(day) >= DATE_ADD('day', -7, CURRENT_DATE)
 GROUP BY user
-ORDER BY total_data_scanned DESC
-LIMIT 10;
+ORDER BY total_data_scanned_gb DESC
+LIMIT 100;
 ```
-Monitoring your data lake usage continuously will help you to understand your operation, and control your security and costs.  You can get to a better permissions model by monitoring the actual usage of the data by your users and roles. You can also detect anomalies – which can lead you to find security incidents. Athena is one of many services that you have to monitor, and the more services you cover, the better control you have.
