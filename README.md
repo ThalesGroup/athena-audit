@@ -2,7 +2,7 @@
 
 ## Overview
 
-`create-audit` is a tool designed to help you monitor your data lake usage. It collects data from AWS Athena and AWS CloudTrail, and combines it to provide insights into your data lake usage. The tool is based on a Python AWS Lambda function that writes the data to AWS S3. You can query the data using a query engine like AWS Athena, and use it in your own analytic tools and processes.
+`athena-audit` is a tool designed to help you monitor your data lake usage. It collects data from AWS Athena and AWS CloudTrail, and combines it to provide insights into your data lake usage. The tool is based on a Python AWS Lambda function that writes the data to AWS S3. You can query the data using a query engine like AWS Athena, and use it in your own analytic tools and processes.
 
 Collecting audit data is crucial, as it allows you to monitor usage by users and roles. The data collected helps to enhance security controls by:
 
@@ -49,11 +49,11 @@ Once the data is written to S3, you can query and analyze it using Athena. See t
 
 Cloud trail collects the users/roles and queries done by Athena as part of its management logs. If you don’t have a trail configured, you will have to define one.
 
-`athean-audit` creates an external table for the cloud trail logs and uses it.
+`athena-audit` creates an external table for the cloud trail logs and uses it.
 
 #### Athena History Table
 
-History data is available through the AWS Athena API going back 45 days. It contains information which doesn't exist in the cloud trail logs, such as the query itself and the data scanned. `athean-audit` collects the history data to S3, and creates an external table for it.
+History data is available through the AWS Athena API going back 45 days. It contains information which doesn't exist in the cloud trail logs, such as the query itself and the data scanned. `athena-audit` collects the history data to S3, and creates an external table for it.
 
 #### Athena Events Table
 
