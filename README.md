@@ -2,13 +2,13 @@
 
 ## Overview
 
-`create-audit` is a tool designed to help you monitor your data lake usage. It collects data from AWS Athena and AWS CloudTrail, and combines it to provide insights into your data lake usage. The tool is based on a Python AWS Lambda function that writes the data to AWS S3. You can query the data using a query engine like AWS Athena and use it in your own analytics tools and processes.
+`create-audit` is a tool designed to help you monitor your data lake usage. It collects data from AWS Athena and AWS CloudTrail, and combines it to provide insights into your data lake usage. The tool is based on a Python AWS Lambda function that writes the data to AWS S3. You can query the data using a query engine like AWS Athena, and use it in your own analytic tools and processes.
 
-Collecting audit data is crucial as it allows you to monitor usage by users and roles. The data collected helps to enhance security controls by:
+Collecting audit data is crucial, as it allows you to monitor usage by users and roles. The data collected helps to enhance security controls by:
 
-- Compare permissions to actual data usage and revoke unnecessary permissions.
-- Identify security misconfigurations, such as users/roles used by multiple applications.
-- Detect security incidents and data leakage events through anomaly detection.
+- Comparing permissions to actual data usage, and revoking unnecessary permissions.
+- Identifying security misconfigurations, such as users/roles used by multiple applications.
+- Detecting security incidents and data leakage events through anomaly detection.
 
 Monitoring your data lake usage continuously will help you to understand your operation, and control your security and costs.  You can get to a better permissions model by monitoring the actual usage of the data by your users and roles. You can also detect anomalies – which can lead you to find security incidents. 
 
@@ -24,12 +24,12 @@ The CloudFormation templates can create the Lambda roles for you, or you can use
 
 ## Problem Articulation
 
-To know who did what in Athena data from the following sources are needed:
+To know who did what in Athena, data from the following sources are needed:
 
-- Cloud trail management logs save the users, roles
-- Athena history saves the query itself and data scanned data per query
+- Cloud trail management logs: saves the users and roles
+- Athena history: saves the query itself and data scanned data per query
 
-Since the data is saved in two different sources, and the athena history is accessible only through the API - Join operation is needed to get the full picture.
+Since the data is saved in two different sources, and the Athena history is accessible only through the API, a Join operation is needed to get the full picture.
 
 ## Solution
 
@@ -47,7 +47,7 @@ Once the data is written to S3, you can query and analyze it using Athena. See t
 
 #### Cloud Trail Management Logs Table
 
-Cloud trail collects the users/roles and queries done by Athena as part of its management logs. If you don’t have a trail configured you will have to define one.
+Cloud trail collects the users/roles and queries done by Athena as part of its management logs. If you don’t have a trail configured, you will have to define one.
 
 `athean-audit` creates an external table for the cloud trail logs and uses it.
 
@@ -59,7 +59,7 @@ History data is available through the AWS Athena API going back 45 days. It cont
 
 The events table holds the joined data, and is used for querying and analyzing the data.
 
-Here is an example SQL for finding the top users by data scanned in the last 7 days:
+Here is an example SQL query for finding the top users by data scanned in the last 7 days:
 
 ```sql
 SELECT user, ROUND(SUM(data_scanned) / 1000000000.0, 2) as total_data_scanned_gb
