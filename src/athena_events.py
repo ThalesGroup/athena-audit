@@ -35,7 +35,7 @@ def get_athena_output_bucket():
 
 
 def get_athena_output_folder():
-    return os.environ.get("ATHENA_OUTPUT_FOLDER", "athena_audit/temp")
+    return os.environ.get("ATHENA_OUTPUT_FOLDER", "athena_audit/query_results")
 
 
 def get_regions() -> List[str]:
