@@ -54,12 +54,13 @@ def _run_queries(workgroup: str, num: int):
 
 def test_validate_default_flow(monkeypatch):
     _run_queries("primary", 100)
-    result = lambda_handler({"day": get_day_back(0), "force": True}, None)
+    day = get_day_back(0)
+    result = lambda_handler({"day": day, "force": True}, None)
     assert result == {
         "data-exists-workgroups": 0,
-        "from_day": "2025-03-05",
+        "from_day": day,
         "records": 100,
-        "to_day": "2025-03-05",
+        "to_day": day,
         "workgroups": 1,
     }
 
@@ -70,12 +71,12 @@ def test_validate_default_flow_multiple_workgroups(monkeypatch):
         workgroup = f"workgroup-{i}"
         athena.create_work_group(Name=workgroup, Configuration={})
         _run_queries(workgroup, 100)
-
-    result = lambda_handler({"day": get_day_back(0), "force": True}, None)
+    day = get_day_back(0)
+    result = lambda_handler({"day": day, "force": True}, None)
     assert result == {
         "data-exists-workgroups": 0,
-        "from_day": "2025-03-05",
+        "from_day": day,
         "records": 1000,
-        "to_day": "2025-03-05",
+        "to_day": day,
         "workgroups": 11,
     }
