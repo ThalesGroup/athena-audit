@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv  # Cache the virtual environment
-          key: ${{ runner.os }}-venv-${{ hashFiles('test.requirements.txt') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('test/test.requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-venv-            
 
@@ -36,7 +36,7 @@ jobs:
         run: |
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r test.requirements.txt                      
+          pip install -r test/test.requirements.txt                      
 
       - name: Run unit tests
         run: |
