@@ -43,3 +43,15 @@ Unit tests also run automatically on every push using a dedicated workflow.
 If you find a bug or have a feature request, please create an issue in the GitHub repository. Provide as much detail as possible to help us understand and address the issue.
 
 We will review your issue and respond as soon as possible. Thank you for helping us improve the project!
+
+
+### Version management
+
+The versions of the projects are managed using git tags. To publish a new version, make sure the main branch is up-to-date and create a new tag with the version number:
+
+```sh
+git tag -a v0.1.0 -m "Release 0.1.0"
+git push --tags
+```
+
+The release will be automatically built and published to the GitHub, and then copied to as S3 bucket for distribution, used by the provided cloud formation templates.
