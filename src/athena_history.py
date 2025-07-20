@@ -87,10 +87,7 @@ def create_history_days_range(
 
 
 def get_query_exec_day(query_exe: dict) -> str:
-    if "CompletionDateTime" in query_exe["Status"]:
-        query_date = query_exe["Status"]["CompletionDateTime"]
-    else:
-        query_date = query_exe["Status"]["SubmissionDateTime"]
+    query_date = query_exe["Status"]["CompletionDateTime"]
     return query_date.strftime("%Y-%m-%d")
 
 
