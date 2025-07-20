@@ -13,7 +13,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: .venv  # Cache the virtual environment
-        key: ${{ runner.os }}-venv-${{ hashFiles('requirements.txt', 'test/test.requirements.txt') }}
+        key: ${{ runner.os }}-venv-${{ hashFiles('test/test.requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-venv-            
 
